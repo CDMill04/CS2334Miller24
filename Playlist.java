@@ -1,192 +1,204 @@
-
-import java.lang.reflect.Array;
-import java.util.Arrays;
-
+import java.util.ArrayList;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.util.StringJoiner;
 public class Playlist {
 	
-	private int numSongs = 0;
-	private Song [] songs = new Song [MIN_CAPACITY]; 
-	private static final int MIN_CAPACITY = 3;
+	private ArrayList<Song> songs;
 	
-	//Constructors
-	Playlist()
-	{
-		numSongs = 0;
+	public Playlist() {
+		this.songs = new ArrayList<>();
 	}
-
-	Playlist(int capacity)
+	
+	public Playlist(String filename) throws IOException
 	{
-		if (capacity > MIN_CAPACITY) {
-			this.songs = new Song[capacity];
-		}
-		numSongs = 0;
-	}
-
-	public int getCapacity()
-	{
-		return songs.length;
+		this.songs = new ArrayList<>();
+		addSongs(filename);
+		//System.out.println(songs);
 	}
 	
 	public int getNumSongs() {
-		return numSongs;
+		return songs.size();
 	}
 	
 	public Song getSong(int index) {
-		if (index < 0) {
+		if (index < 0 || index >= getNumSongs()) {
 			return null;
 		}
-		
-		if (index == songs.length) {
-			return null;
-		}
-		return songs[index];
+		return songs.get(index);
 	}
 	
-	public Song [] getSongs() {
-		return Arrays.copyOf(songs, numSongs);
+	public Song[] getSongs() {
+		return songs.toArray(new Song[0]);
 	}
 	
 	public boolean addSong(Song song) {
-		
-		int numSpots = 0;
-		for (int i = 0; i < songs.length; i++) {
-			if (songs[i] == null) {
-				++numSpots;
-			}
-		}
-		
-		if (numSpots == 0 || song == null) { //if this method is failing, could be this "or" statement
-			return false;
-		}
-		
-		/*for (int idx = 0; idx < songs.length; ++idx) {
-			if (songs[idx] == null) {
-				songs[idx] = song;
-				return true;
-			}
-		}*/
-		if (numSongs < songs.length) {
-			songs[numSongs++] = song;
-			return true;
-		}
-		
-		return false;
+		return addSong(getNumSongs(), song);
 	}
 	
 	public boolean addSong(int index, Song song) {
-		int numSpots = 0;
-		for (int i = 0; i < songs.length; i++) {
-			if (songs[i] == null) {
-				++numSpots;
-			}
-		}
-		
-		if (numSpots == 0 || song == null) { //if this method is failing, could be this "or" statement
+		if (song == null || index < 0 || index > songs.size()) 
+		{
 			return false;
 		}
-		
-		if (index < 0 || index >= (songs.length)) { //alternatively could be this code. May need "index > (songs.length + 1)"
-			return false;
-		}
-		
-		if(songs[index] != null) {
-			return false;
-		}
-		
-		for (int idx = songs.length - 1; idx <= songs.length && idx >= 0; idx--) {
-			if (songs[idx] != null && idx != songs.length - 1 && idx >= index) { // Passing this statement means that the idx num has 
-				// a song, is not at the top of the array, and is greater or equal to index.
-				if (songs[idx + 1] == null) {
-					songs[idx + 1] = songs[idx];
-					songs[idx] = null;
-				}
-			}
-		} 
-		
-		//if (songs[index] == null) {
-			songs[index] = song;
-			++numSongs;
-			return true;
-		//}
-		
-		
-		//return false; //primary test for failure: switch this to true and see if changes the outcome.
+		songs.add(index, song);
+		return true;
 	}
 	
 	public int addSongs(Playlist playlist) {
-		int numSongsAdded = 0;
-		if (playlist == null) {
-			return numSongsAdded;
+		if (playlist == null)
+		{
+			return 0;
 		}
 		
-		int idx = 0;
-		
-		for (int i = songs.length - 1; i <= songs.length && idx <= playlist.numSongs && i >= 0; --i) {
-			if (songs[i] == null) {
-				 songs[i] = playlist.songs[idx];
-				 ++idx;
-				 ++numSongsAdded;
-			}
+		int numAdded = 0;
+		for (int i = 0; i < playlist.getNumSongs(); i++)
+		{
+			Song songToAdd = playlist.getSong(i);
+			songs.add(songToAdd);
+			++numAdded;
 		}
-		
-		int numSpots = 0;
-		for (int i = 0; i < songs.length; i++) {
-			if (songs[i] == null) {
-				++numSpots;
-			}
-		}
-		
-		numSongs = songs.length - numSpots;
-		
-		return numSongsAdded;
+		return numAdded;
 	}
 	
 	public Song removeSong() {
-		
-		if (songs == null) {
-			return null;
-		}
-		int numSpots = 0;
-		for (int idx = 0; idx < songs.length; idx++) {
-			if (songs[idx] == null) {
-				++numSpots;
-			}
-		}
-		
-		Song [] tempSongArray = Arrays.copyOf(songs, songs.length);
-		for (int i = songs.length - 1; i <= songs.length && i >= 0; --i) {
-			if (songs[i] != null) {
-				songs[i] = null;
-				
-				numSongs = songs.length - numSpots -1;
-				return tempSongArray[i];
-			}
-		}
-		return null;
+		return removeSong(getNumSongs() - 1);
 	}
 	
 	public Song removeSong(int index) {
-		 
-		if (index < 0) {
-	    	return null;
-		}  
 		
-		if (songs[index] == null) {
-		        return null;
+		if (index < 0 || index > (songs.size() - 1))
+		{
+			return null;
 		}
-		    
-		Song removedSong = songs[index];
-
-		    for (int i = index; i < songs.length - 1; i++) {
-		        songs[i] = songs[i + 1];
-		    }
-		    	songs[songs.length - 1] = null;
-
-		    	numSongs--;
-		    
+		
+		Song removedSong = songs.get(index);
+		songs.remove(index);
 		return removedSong;
-
 	}
 	
+	//New Methods
+	
+	public int addSongs(String filename) throws IOException
+	{
+		BufferedReader buffFile = new BufferedReader(new FileReader(filename));
+		int count = 0;
+		String newLine;
+		while ((newLine = buffFile.readLine()) != null)
+		{
+			String[] songInfo = newLine.split("; ");
+			
+			String title = songInfo[0].trim();
+            String artist = songInfo[1].trim();
+            
+            String[] timeParts = songInfo[2].trim().split(":");
+            int[] time = new int[timeParts.length];
+            for (int i = 0; i < timeParts.length; i++) {
+                time[i] = Integer.parseInt(timeParts[i].trim());
+            }
+            
+            if (time.length == 1) {
+                int seconds = time[0];
+                time = new int[]{seconds};
+            }
 
+            if (time.length == 2) {
+                int minutes = time[0];
+                int seconds = time[1];
+                time = new int[]{seconds, minutes};
+            }
+            
+            Song song = new Song(title, artist, time);
+            songs.add(song);
+            ++count;
+		}
+		
+		buffFile.close();
+		return count;
+	}
+
+	@Override
+	public String toString() {
+		StringJoiner joiner = new StringJoiner(System.lineSeparator(), "", "");
+			for (Song song: songs)
+			{
+				int [] time = song.getTime();
+				String title = song.getTitle();
+				String artist = song.getArtist();
+				
+				int minutes1 = time.length > 1 ? time[0] : 0;
+		        int seconds1 = time.length > 0 ? time[1] : time[0];
+		        String timeString = String.format("%d:%02d", seconds1, minutes1);
+		        //String timeString = minutesString + ":" +secondsString;
+		        
+				joiner.add(title + "; " + artist + "; " + timeString);
+			}
+			return joiner.toString();
+	}
+	
+	public void saveSongs(String filename) throws IOException
+	{
+		Path filePath = Paths.get(filename);
+		String playlist = this.toString();
+		Files.write(filePath, playlist.getBytes());
+	}
+	
+	public int[] getTotalTime()
+	{
+		int[] totalTime = new int[3];
+	    for (Song song : songs) {
+	        int[] songTime = song.getTime();
+
+	        for (int i = 0; i < songTime.length; i++) {
+	            totalTime[i] += songTime[i];
+	        }
+
+	        if (totalTime[0] == 0) {
+	            int[] finalTime = new int[1];
+	            finalTime[0] = 0;
+	            return finalTime;
+	        }
+
+	        if (totalTime[2] == 0 && totalTime[1] == 0 && totalTime[0] < 60) {
+	            int[] finalTime = new int[1];
+	            finalTime[0] = totalTime[0];
+	            return finalTime;
+	        }
+
+	        if (totalTime[2] == 0 && (totalTime[1] != 0 || totalTime[0] != 0)) {
+	            if (totalTime[0] >= 60) {
+	                totalTime[1] += totalTime[0] / 60;
+	                totalTime[0] %= 60;
+	                if (totalTime[1] >= 60) {
+	                    totalTime[2] += totalTime[1] / 60;
+	                    totalTime[1] %= 60;
+	                    return totalTime;
+	                }
+	                int[] finalTime = new int[2];
+	                finalTime[0] = totalTime[0];
+	                finalTime[1] = totalTime[1];
+	                return finalTime;
+	            }
+	        }
+
+	        if (totalTime[2] != 0) {
+	            if (totalTime[0] >= 60) {
+	                totalTime[1] += totalTime[0] / 60;
+	                totalTime[0] %= 60;
+	            }
+	            if (totalTime[1] >= 60) {
+	                totalTime[2] += totalTime[1] / 60;
+	                totalTime[1] %= 60;
+	            }
+	            return totalTime;
+	        }
+	    }
+	    
+	    return new int[]{0};
+	}
+		
 }
