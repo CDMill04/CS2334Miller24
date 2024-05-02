@@ -1,142 +1,278 @@
-import java.util.ArrayList;
-//import java.math.BigDecimal;
-//import java.math.RoundingMode;
-import java.io.BufferedReader;
-import java.io.FileReader;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Scanner;
+
 public class TripPoint {
 
-	private double lat;
-	private double lon;
-	private int time;
-	private static ArrayList<TripPoint> trip = new ArrayList<TripPoint>();
-	protected static String finalLine = null;
+	private double lat;	// latitude
+	private double lon;	// longitude
+	private int time;	// time in minutes
 	
-	TripPoint (int time, double lat, double lon)
-	{
-		this.lat = lat;
-		this.lon = lon;
-		this.time = time;
+	private static ArrayList<TripPoint> trip;	// ArrayList of every point in a trip
+	private static ArrayList<TripPoint> movingTrip;
+	public static final double MINIMUM_DISPLACEMENT = 0.6;
+	public static boolean wasOneCalled = false;
+
+	// default constructor
+	public TripPoint() {
+		time = 0;
+		lat = 0.0;
+		lon = 0.0;
 	}
 	
+	// constructor given time, latitude, and longitude
+	public TripPoint(int time, double lat, double lon) {
+		this.time = time;
+		this.lat = lat;
+		this.lon = lon;
+	}
+	
+	// returns time
 	public int getTime() {
 		return time;
 	}
 	
+	// returns latitude
 	public double getLat() {
 		return lat;
 	}
 	
+	// returns longitude
 	public double getLon() {
 		return lon;
 	}
 	
+	// returns a copy of trip ArrayList
 	public static ArrayList<TripPoint> getTrip() {
-		return trip;
+		return new ArrayList<>(trip);
 	}
 	
-	public static void readFile(String filename) throws IOException {
+	public static ArrayList<TripPoint> getMovingTrip() {
+		ArrayList<TripPoint> movingCopy = movingTrip;
+		return movingCopy;
+	}
+	
+	// uses the haversine formula for great sphere distance between two points
+	public static double haversineDistance(TripPoint first, TripPoint second) {
+		// distance between latitudes and longitudes
+		double lat1 = first.getLat();
+		double lat2 = second.getLat();
+		double lon1 = first.getLon();
+		double lon2 = second.getLon();
 		
-		trip = new ArrayList<>();
-		BufferedReader buff = new BufferedReader(new FileReader(filename));
-		String newLine;
-		String timeSkip = "Time";
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+ 
+        // convert to radians
+        lat1 = Math.toRadians(lat1);
+        lat2 = Math.toRadians(lat2);
+ 
+        // apply formulae
+        double a = Math.pow(Math.sin(dLat / 2), 2) +
+                   Math.pow(Math.sin(dLon / 2), 2) *
+                   Math.cos(lat1) *
+                   Math.cos(lat2);
+        double rad = 6371;
+        double c = 2 * Math.asin(Math.sqrt(a));
+        return rad * c;
+	}
+	
+	// finds the average speed between two TripPoints in km/hr
+	public static double avgSpeed(TripPoint a, TripPoint b) {
 		
-		while ((newLine = buff.readLine()) != null) {
-			String[] info = newLine.split(",");
-			if (info[0].equals(timeSkip)) {
-				continue;
-			}
-			
-			int newTime = Integer.parseInt(info[0]);
-			double newLat = Double.parseDouble(info[1]);
-			double newLon = Double.parseDouble(info[2]);
-			TripPoint newTripPoint = new TripPoint(newTime, newLat, newLon);
-			trip.add(newTripPoint);
-			finalLine = newLine;
-			
+		int timeInMin = Math.abs(a.getTime() - b.getTime());
+		
+		double dis = haversineDistance(a, b);
+		
+		double kmpmin = dis / timeInMin;
+		
+		return kmpmin*60;
+	}
+	
+	public static double avgMovingSpeed() {
+		movingTrip = new ArrayList<TripPoint>();
+		double totalSpeed = 0;
+		
+		for (int i = 0; i < movingTrip.size(); i++) {
+			double average = avgSpeed(movingTrip.get(i), movingTrip.get(i + 1));
+			totalSpeed = totalSpeed + average;
 		}
 		
-		buff.close();
+		double movingAverage = totalSpeed / movingTrip.size();
+		return movingAverage;
 	}
 	
+	// returns the total time of trip in hours
 	public static double totalTime() {
-		/*TripPoint tempStore;
-		double timeBank = 0;
-		double tempTime = 0;
+		int minutes = trip.get(trip.size()-1).getTime();
+		double hours = minutes / 60.0;
+		return hours;
+	}
+	
+	public static double movingTime() {
+		movingTrip = new ArrayList<TripPoint>();
 		
-		for (int i = 0; i < trip.size(); i++) {
-			tempStore = trip.get(i);
-			tempTime = tempStore.getTime();
-			tempTime = tempTime / 60;
-			timeBank = timeBank + tempTime;
+		if (wasOneCalled == true) {
+		int amountStops = h1StopDetection();
+		double allTime = totalTime();
+		
+		int timeMinutes = amountStops * 5;
+		double timeHours = timeMinutes / 60.0;
+		
+		double timeMoving = allTime - timeHours;
+		
+		return timeMoving;
+		} else {
+			int amountStops = h2StopDetection();
+			double allTime = totalTime();
 			
-		} */
-		//Was way overthinking it
+			int timeMinutes = amountStops * 5;
+			double timeHours = timeMinutes / 60.0;
+			
+			double timeMoving = allTime - timeHours;
+			
+			return timeMoving;
+		}
+	}
+	
+	public static double stoppedTime() {
+		movingTrip = new ArrayList<TripPoint>();
 		
-		String[] forTotalTime = finalLine.split(",");
-		double totTime = Integer.parseInt(forTotalTime[0]); //gives total time in minutes
-		//totTime = Math.round((totTime / 60) * 100) / 100; 
-		//Now this should hopefully convert to hours. Pray
-		//Well, now Ive got the first value right. Now to stop it truncating the end. Update: Gonna try using String and converting back
-		totTime = totTime / 60;
-		String toConvert = String.format("%.2f", totTime);
-		totTime = Double.parseDouble(toConvert);
-		//Update: >:)
+		if (wasOneCalled == true) {
+		int amountStops = h1StopDetection();
+		//double allTime = totalTime();
 		
-		return totTime;
+		double timeMinutes = amountStops * 5;
+		String timeHours = String.format("%.4f", timeMinutes / 60);
+		
+		return Double.parseDouble(timeHours);
+		} else {
+			int amountStops2 = h2StopDetection();
+			
+			double timeMinutes2 = amountStops2 * 5;
+			String timeHours2 = String.format("%.4f", timeMinutes2 / 60);
+			
+			return Double.parseDouble(timeHours2);
+		}
+	}
+	
+	// finds the total distance traveled over the trip
+	public static double totalDistance() throws FileNotFoundException, IOException {
+		
+		double distance = 0.0;
+		
+		if (trip.isEmpty()) {
+			readFile("triplog.csv");
+		}
+		
+		for (int i = 1; i < trip.size(); ++i) {
+			distance += haversineDistance(trip.get(i-1), trip.get(i));
+		}
+		
+		return distance;
+	}
+	
+	public String toString() {
+		
+		return null;
+	}
 
+	public static void readFile(String filename) throws FileNotFoundException, IOException {
+
+		// construct a file object for the file with the given name.
+		File file = new File(filename);
+
+		// construct a scanner to read the file.
+		Scanner fileScanner = new Scanner(file);
+		
+		// initiliaze trip
+		trip = new ArrayList<TripPoint>();
+
+		// create the Array that will store each lines data so we can grab the time, lat, and lon
+		String[] fileData = null;
+
+		// grab the next line
+		while (fileScanner.hasNextLine()) {
+			String line = fileScanner.nextLine();
+
+			// split each line along the commas
+			fileData = line.split(",");
+
+			// only write relevant lines
+			if (!line.contains("Time")) {
+				// fileData[0] corresponds to time, fileData[1] to lat, fileData[2] to lon
+				trip.add(new TripPoint(Integer.parseInt(fileData[0]), Double.parseDouble(fileData[1]), Double.parseDouble(fileData[2])));
+			}
+			
+		}
+
+		// close scanner
+		fileScanner.close();
 	}
 	
-	public static double haversineDistance(TripPoint a, TripPoint b) {
+	public static int h1StopDetection() {	
+		movingTrip = new ArrayList<TripPoint>();
+		wasOneCalled = true;
 		
-		double eartRad = 6371;
-		double distLat = Math.toRadians(b.getLat()) - Math.toRadians(a.getLat());
-		double distLon = Math.toRadians(b.getLon())  - Math.toRadians(a.getLon());
-		
-		//Haversine formula SUCKS
-		double sideA = Math.sin(distLat / 2) * Math.sin(distLat / 2) + Math.cos(Math.toRadians(a.getLat())) * Math.cos(Math.toRadians(b.getLat())) * Math.sin(distLon / 2) * Math.sin(distLon / 2);
-		double angC = 2 * Math.atan2(Math.sqrt(sideA), Math.sqrt(1 - sideA));
-		double dist = eartRad * angC;
-		//dist = Math.round(dist * 10.0);
-		String toConvert = String.format("%.1f", dist);
-		dist = Double.parseDouble(toConvert); //Math.round also sucks. It never works properly for me.
-		return dist;
-	}
-	
-	public static double avgSpeed(TripPoint a, TripPoint b) {
-		double dist = haversineDistance(a, b);
-		double timeBetween = b.getTime() - a.getTime();
-		timeBetween = Math.abs(timeBetween);
-		double avgVelocity = dist / timeBetween; //In minutes
-		avgVelocity = avgVelocity * 60; //in hrs YES IT WORKS RAHHHHHHH
-		String toConvert = String.format("%.2f", avgVelocity);
-		avgVelocity = Double.parseDouble(toConvert);
-		
-		return avgVelocity;
-	}
-	
-	public static double totalDistance() {
-		String[] lastPoints = finalLine.split(",");
-		int finalTime = Integer.parseInt(lastPoints[0]);
-		TripPoint tempStore;
-		TripPoint tempStore2;
-		double totDist = 0;
+		int stopCount = 0;
 		
 		for (int i = 0; i < trip.size() - 1; i++) {
-			tempStore = trip.get(i);
+			double tripDist = haversineDistance(trip.get(i), trip.get(i + 1));
 			
-			if (tempStore.getTime() < finalTime) { //Why this part? I want to prevent an exception if it tries to reach past the final value.
-				tempStore2 = trip.get(i + 1);
-				double distBetween = haversineDistance(tempStore, tempStore2);
-				totDist = distBetween + totDist;
-				//totDist = totDist.add(BigDecimal.valueOf(distBetween));
+			if (tripDist >= MINIMUM_DISPLACEMENT) {
+				movingTrip.add(trip.get(i));
+			} else {
+				stopCount++;
 			}
 		}
-		//totDist.setScale(3, RoundingMode.HALF_UP);
-		//double finalDistance = totDist.doubleValue();
-		return totDist; //Rounding errors like crazy. Gonna have to BigDecimal it. Update: didnt work. Going back.
-		//Going to speculate not rounding errors. Might be a bounds issue.
+		return stopCount;
 	}
 	
+	public static int h2StopDetection() {
+		
+        movingTrip = new ArrayList<TripPoint>();
+        double d = 0.5;
+        int count = 0;
+        wasOneCalled = false;
+        
+        ArrayList<TripPoint> zone = new ArrayList<TripPoint>();
+        // A nested loop to compute the check the stop zones
+        for(TripPoint current: trip) {
+            if(zone.size()==0) {
+                zone.add(current);
+                continue;
+            }
+            boolean inStopZone = false;
+            for(TripPoint stop : zone) {
+                if(haversineDistance(stop, current) < d) {
+                    inStopZone = true;
+                }
+            }
+            if(inStopZone) {
+                zone.add(current);
+            } else {
+                if(zone.size()>=3) {
+                    count += zone.size();
+                }else {
+                    for(TripPoint sp : zone) {
+                        movingTrip.add(sp); 
+                    }
+                }
+                zone.clear();
+                zone.add(current);
+            }
+        }
+        // calculate the stop zones one last time
+        if(zone.size()>=3) {
+            count += zone.size();
+        }else {
+            for(TripPoint stop : zone) {
+                movingTrip.add(stop);
+            }
+        }
+        return count;
+  }
+
 }
